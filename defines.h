@@ -1,7 +1,7 @@
 #define SENSOR_BASENAME "esp32-"
 
-#define SSID_BASENAME "moduleair-"
-#define HOSTNAME_BASE "moduleair-"
+#define SSID_BASENAME "cohub66-"
+#define HOSTNAME_BASE "cohub66-"
 
 #define LEN_CFG_STRING 65
 #define LEN_CFG_PASSWORD 65

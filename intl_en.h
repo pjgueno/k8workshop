@@ -1,5 +1,5 @@
 #define INTL_LANG "EN"
-#define INTL_PM_SENSOR "Weather station ModuleAir v2"
+#define INTL_PM_SENSOR "co:hub66"
 const char INTL_CONFIGURATION[] PROGMEM = "Configuration";
 #define INTL_WIFI_SETTINGS "WiFi Settings"
 #define INTL_WIFI_NETWORKS "Loading wifi networks ..."

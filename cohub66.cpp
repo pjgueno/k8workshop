@@ -1,8 +1,5 @@
 #include <WString.h>
 #include <pgmspace.h>
-// #include <iostream> 
-// #include <iomanip> 
-// #include <sstream>
 
 #define SOFTWARE_VERSION_STR "CoHub66-V1-090622"
 String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
@@ -14,33 +11,6 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <SPI.h>
 #include <Tone32.h>
 
-/*****************************************************************
- * IMPORTANT                                          *
- *****************************************************************/
-
-//On force l'utilisation des 2 SPI
-
-//Dans SPI.cpp
-
-// #if CONFIG_IDF_TARGET_ESP32
-// SPIClass SPI(VSPI);
-// SPIClass SPI_H(HSPI);
-// #else
-// SPIClass SPI(FSPI);
-// #endif
-
-//Dans PXMatrix
-
-//On remplace tous les SPI. par SPI_H.
-
-//On définit les pins:
-
-// // HW SPI PINS
-// #define SPI_BUS_CLK 14
-// #define SPI_BUS_MOSI 13
-// #define SPI_BUS_MISO 12 //Pas utilisé => override?   12
-// #define SPI_BUS_SS 4    //Pas utilisé => override   0
-
 // includes ESP32 libraries
 #define FORMAT_SPIFFS_IF_FAILED true
 #include <FS.h>
@@ -50,7 +20,7 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <WiFiClient.h>
 #include <WiFiClientSecure.h>
 #include <HardwareSerial.h>
-#include <esp32/sha.h> //pour https ? remplacer par #include <esp32/sha.h> ?  #include "sha/sha_parallel_engine.h" ?
+#include <esp32/sha.h> 
 #include <WebServer.h>
 #include <ESPmDNS.h>
 
@@ -65,7 +35,6 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <ArduinoJson.h>
 #include <DNSServer.h>
 #include <StreamString.h>
-// #include <TinyGPS++.h>
 
 // includes files
 #include "./intl.h"
@@ -181,9 +150,7 @@ LoggerConfig loggerConfigs[LoggerCount];
 
 // test variables
 long int sample_count = 0;
-bool bmx280_init_failed = false;
-bool gps_init_failed = false;
-bool moduleair_selftest_failed = false;
+bool cohub66_selftest_failed = false;
 
 WebServer server(80);
 
@@ -195,6 +162,15 @@ WebServer server(80);
  *****************************************************************/
 
 SSD1306Wire *oled_ssd1306 = nullptr; // as pointer
+
+/*****************************************************************
+ * Counter  and Relai                                         *
+ *****************************************************************/
+
+uint16_t taste_counter = 0;
+bool relai = false;
+#define PINRELAY 27  //CHECK
+uint8_t arrayDownlink[2];
 
 /*****************************************************************
  * Serial declarations                                           *
@@ -277,11 +253,6 @@ struct struct_wifiInfo
 
 struct struct_wifiInfo *wifiInfo;
 uint8_t count_wifiInfo;
-
-// IPAddress addr_static_ip;
-// IPAddress addr_static_subnet;
-// IPAddress addr_static_gateway;
-// IPAddress addr_static_dns;
 
 #define msSince(timestamp_before) (act_milli - (timestamp_before))
 
@@ -918,6 +889,7 @@ static void webserver_config_send_body_get(String &page_content)
 	page_content += FPSTR(TABLE_TAG_CLOSE_BR);
 
 	server.sendContent(page_content);
+	page_content = emptyString;
 
 	page_content = tmpl(FPSTR(WEB_DIV_PANEL), String(4));
 	
@@ -926,16 +898,14 @@ static void webserver_config_send_body_get(String &page_content)
 	page_content += FPSTR(WEB_B_BR);
 	add_form_checkbox_sensor(Config_sds_read, FPSTR(INTL_SDS011));
 
-	// Paginate page after ~ 1500 Bytes  //ATTENTION RYTHME PAGINATION !
-	server.sendContent(page_content);
-	page_content = emptyString;
+	// // Paginate page after ~ 1500 Bytes  //ATTENTION RYTHME PAGINATION !
+	// server.sendContent(page_content);
+	// page_content = emptyString;
 	
-		// // Paginate page after ~ 1500 Bytes
-	server.sendContent(page_content);
-	page_content = emptyString;
 	
 	// Paginate page after ~ 1500 Bytes
 	server.sendContent(page_content);
+	page_content = emptyString;
 
 	page_content = tmpl(FPSTR(WEB_DIV_PANEL), String(5));
 
@@ -943,16 +913,8 @@ static void webserver_config_send_body_get(String &page_content)
 	page_content += FPSTR(BR_TAG);
 	page_content += form_checkbox(Config_send2dusti, FPSTR(WEB_SENSORCOMMUNITY), false);
 
-	// Remove https because not supported in esp32
-	// page_content += FPSTR(WEB_NBSP_NBSP_BRACE);
-	// page_content += form_checkbox(Config_ssl_dusti, FPSTR(WEB_HTTPS), false);
-	// page_content += FPSTR(WEB_BRACE_BR);
 	page_content += FPSTR("<br>");
 	page_content += form_checkbox(Config_send2madavi, FPSTR(WEB_MADAVI), false);
-	// Remove https because not supported in esp32
-	// page_content += FPSTR(WEB_NBSP_NBSP_BRACE);
-	// page_content += form_checkbox(Config_ssl_madavi, FPSTR(WEB_HTTPS), false);
-	// page_content += FPSTR(WEB_BRACE_BR);
 	page_content += FPSTR("<br>");
 
 	add_form_checkbox(Config_send2csv, FPSTR(WEB_CSV));
@@ -962,11 +924,6 @@ static void webserver_config_send_body_get(String &page_content)
 
 	page_content += FPSTR(BR_TAG);
 	page_content += form_checkbox(Config_send2custom, FPSTR(INTL_SEND_TO_OWN_API), false);
-	// Remove https because not supported in esp32
-	// page_content += FPSTR(WEB_NBSP_NBSP_BRACE);
-	// page_content += form_checkbox(Config_ssl_custom, FPSTR(WEB_HTTPS), false);
-	// page_content += FPSTR(WEB_BRACE_BR);
-
 
 	server.sendContent(page_content);
 	page_content = FPSTR(TABLE_TAG_OPEN);
@@ -979,10 +936,6 @@ static void webserver_config_send_body_get(String &page_content)
 
 	page_content += FPSTR(BR_TAG);
 	page_content += form_checkbox(Config_send2custom2, FPSTR(INTL_SEND_TO_OWN_API2), false);
-	// Remove https because not supported in esp32
-	// page_content += FPSTR(WEB_NBSP_NBSP_BRACE);
-	// page_content += form_checkbox(Config_ssl_custom2, FPSTR(WEB_HTTPS), false);
-	// page_content += FPSTR(WEB_BRACE_BR);
 
 	server.sendContent(page_content);
 
@@ -1076,13 +1029,6 @@ static void sensor_restart()
 
 static void webserver_config()
 {
-
-// Si entre dans boucle de reboot
-
-// 		if (cfg::has_matrix){
-// 	display_update_enable(false);
-// }
-
 
 	if (!webserver_request_auth())
 	{
@@ -1267,15 +1213,6 @@ static void webserver_values()
 		page_content += FPSTR(EMPTY_ROW);
 	}
 
-	// if (cfg::gps_read)
-	// {
-	// 	add_table_value(FPSTR(WEB_GPS), FPSTR(INTL_LATITUDE), check_display_value(last_value_GPS_lat, -200.0, 6, 0), unit_Deg);
-	// 	add_table_value(FPSTR(WEB_GPS), FPSTR(INTL_LONGITUDE), check_display_value(last_value_GPS_lon, -200.0, 6, 0), unit_Deg);
-	// 	add_table_value(FPSTR(WEB_GPS), FPSTR(INTL_ALTITUDE), check_display_value(last_value_GPS_alt, -1000.0, 2, 0), "m");
-	// 	add_table_value(FPSTR(WEB_GPS), FPSTR(INTL_TIME_UTC), last_value_GPS_timestamp, emptyString);
-	// 	page_content += FPSTR(EMPTY_ROW);
-	// }
-
 	server.sendContent(page_content);
 	page_content = emptyString;
 
@@ -1307,7 +1244,7 @@ static void webserver_status()
 					 "<thead><tr><th> " INTL_PARAMETER "</th><th>" INTL_VALUE "</th></tr></thead>");
 	String versionHtml(SOFTWARE_VERSION);
 	versionHtml += F("/ST:");
-	versionHtml += String(!moduleair_selftest_failed);
+	versionHtml += String(!cohub66_selftest_failed);
 	versionHtml += '/';
 	versionHtml.replace("/", FPSTR(BR_TAG));
 	add_table_row_from_value(page_content, FPSTR(INTL_FIRMWARE), versionHtml);
@@ -1518,13 +1455,6 @@ static void webserver_removeConfig()
  *****************************************************************/
 static void webserver_reset()
 {
-
-// Si entre dans boucle de reboot
-		// if (cfg::has_matrix){
-		// 	display_update_enable(false);
-		// }
-
-
 	if (!webserver_request_auth())
 	{
 		return;
@@ -1840,8 +1770,8 @@ static void wifiConfig()
 	debug_outln_info_bool(F("SensorCommunity: "), cfg::send2dusti);
 	debug_outln_info_bool(F("Madavi: "), cfg::send2madavi);
 	debug_outln_info_bool(F("CSV: "), cfg::send2csv);
-	debug_outln_info_bool(F("AirCarto: "), cfg::send2custom);
-	debug_outln_info_bool(F("AtmoSud: "), cfg::send2custom2);
+	debug_outln_info_bool(F("API1: "), cfg::send2custom);
+	debug_outln_info_bool(F("API2: "), cfg::send2custom2);
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_info_bool(F("Display: "), cfg::has_ssd1306);
 	debug_outln_info(F("Debug: "), String(cfg::debug));
@@ -2075,8 +2005,8 @@ static void send_csv(const String &data)
  * get data from LoRaWAN downlink payload                                        *
  *****************************************************************/
 
-// static void getDataLora(uint8_t array[5])
-// {
+static void getDataLora(uint8_t array[5])
+{
 
 // union {
 //   float f;
@@ -2111,7 +2041,7 @@ static void send_csv(const String &data)
 //     break;
 // }
 // Debug.println(u.f,2);
-// }
+}
 
 /*****************************************************************
  * read SDS011 sensor values                                     *
@@ -2238,8 +2168,6 @@ static void display_values()
 	// float pm10Atmo = -1.0;
 	// float pm25Atmo = -1.0;	
 
-
-
 	double lat_value = -200.0;
 	double lon_value = -200.0;
 	double alt_value = -1000.0;
@@ -2250,23 +2178,6 @@ static void display_values()
 	int line_count = 0;
 	debug_outln_info(F("output values to display..."));
 
-// 	  "display_measure": false,
-//   "display_forecast": false,
-
-// Capteurs CO2
-// Sonde MH-Z16
-// Sonde MH-Z19
-
-// Capteurs COV
-// Sonde SGP40
-
-// Position 
-// Latitude: 	
-// Longitude: 	
-// Altitude (m): 	
-
-
-
 	if (cfg::sds_read)
 	{
 		pm10_sensor = FPSTR(SENSORS_SDS011);
@@ -2274,16 +2185,6 @@ static void display_values()
 		pm10_value = last_value_SDS_P1;
 		pm25_value = last_value_SDS_P2;
 	}
-
-
-	// if (cfg::gps_read)
-	// {
-	// 	lat_value = last_value_GPS_lat;
-	// 	lon_value = last_value_GPS_lon;
-	// 	alt_value = last_value_GPS_alt;
-	// }
-
-
 
 	if (cfg::has_ssd1306)
 	{
@@ -2468,11 +2369,11 @@ static void logEnabledAPIs()
 
 	if (cfg::send2custom)
 	{
-		debug_outln_info(F("AirCarto API"));
+		debug_outln_info(F("API1"));
 	}
 	if (cfg::send2custom2)
 	{
-		debug_outln_info(F("Atmosud API"));
+		debug_outln_info(F("API2"));
 	}
 }
 
@@ -2509,11 +2410,11 @@ static unsigned long sendDataToOptionalApis(const String &data)
 	{
 		String data_to_send = data;
 		data_to_send.remove(0, 1);
-		String data_4_custom(F("{\"moduleairid\": \""));
+		String data_4_custom(F("{\"cohub66id\": \""));
 		data_4_custom += esp_chipid;
 		data_4_custom += "\", ";
 		data_4_custom += data_to_send;
-		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("aircarto api: "));
+		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("API1: "));
 		sum_send_time += sendData(LoggerCustom, data_4_custom, 0, cfg::host_custom, cfg::url_custom);
 	}
 
@@ -2521,11 +2422,11 @@ static unsigned long sendDataToOptionalApis(const String &data)
 	{
 		String data_to_send = data;
 		data_to_send.remove(0, 1);
-		String data_4_custom(F("{\"moduleairid\": \""));
+		String data_4_custom(F("{\"cohub66id\": \""));
 		data_4_custom += esp_chipid;
 		data_4_custom += "\", ";
 		data_4_custom += data_to_send;
-		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("atmosud api: "));
+		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("API2: "));
 		sum_send_time += sendData(LoggerCustom2, data_4_custom, 0, cfg::host_custom2, cfg::url_custom2);
 	}
 
@@ -2554,25 +2455,11 @@ void os_getDevKey(u1_t *buf) { memcpy_P(buf, appkey_hex, 16); }
 
 //Initialiser avec les valeurs -1.0,-128.0 = valeurs par défaut qui doivent être filtrées
 
-static uint8_t datalora_sds[30] = {0x00, 0x00, 0x80, 0xbf, 0x00, 0x00, 0x80, 0xbf, 0x00, 0x00, 0x00, 0xc3, 0x00, 0x00, 0x80, 0xbf, 0x00, 0x00, 0x80, 0xbf, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff};
+static uint8_t datalora_sds[19] = {0x00, 0x00, 0x80, 0xbf,0x00, 0x00, 0x80, 0xbf, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 const unsigned TX_INTERVAL = (cfg::sending_intervall_ms)/1000;
 
 static osjob_t sendjob;
-
-
-//Mettre en explicit
-
-//changer le NSS pour éciter conflit car le ss de la matrix n'est pas modifiable.
-
-//Ou bien: display.begin() explicit avec les SPI pins et SS modifié
-
-//display.begin(16, SPI_BUS_CLK, SPI_BUS_MOSI, SPI_BUS_MISO, D4); Mais conflit car redef globale
-
-//Essayer spi.setCS(PIN) à chaque fois avant lancer fonction LMIC ou Matrix...
-
-//La PXmatrix ne digitalwrite jamais le pin _SPI_SS => pas de problème ?
-
 
 #if defined(ARDUINO_HELTEC_WIFI_LORA_32_V2)
 const lmic_pinmap lmic_pins = {
@@ -2601,10 +2488,8 @@ void ToByteArray()
 
 	for (unsigned int i = 0; i < appeui_str.length(); i += 2)
 	{
-		String byteString = appeui_str.substring(i, i + 2); // ICI? 1
-															// Debug.println(byteString);
+		String byteString = appeui_str.substring(i, i + 2); 
 		byte byte = (char)strtol(byteString.c_str(), NULL, 16);
-		// Debug.println(byte,HEX);
 		appeui_hex[(appeui_str.length() / 2) - j] = byte; // reverse
 		j += 1;
 	}
@@ -2645,13 +2530,9 @@ void do_send(osjob_t *j)
 	if (LMIC.opmode & OP_TXRXPEND)
 	{
 		Debug.println(F("OP_TXRXPEND, not sending"));
-		//doit être normal => recall de dosend lors de la preparation du paquet
 	}
 	else
 	{
-		// Prepare upstream data transmission at the next possible time.
-		//LMIC_setTxData2(1, mydata, sizeof(mydata) - 1, 0);
-
 		if (cfg::sds_read)
 		{
 			LMIC_setTxData2(1, datalora_sds, sizeof(datalora_sds) - 1, 0);
@@ -2742,6 +2623,19 @@ void onEvent(ev_t ev)
 			Debug.println(F(" bytes of payload"));
 		}
 
+			Debug.println(F("Downlink payload:"));
+			for (int i = 0; i < LMIC.dataLen; i++) {
+			Debug.print(" ");
+			Debug.print(LMIC.frame[LMIC.dataBeg + i], HEX);
+			arrayDownlink[i]=LMIC.frame[LMIC.dataBeg + i];
+			if (i == 2)
+			{
+				Debug.printf("\n");
+				getDataLora(arrayDownlink);
+			}
+			}
+
+
 		// Schedule next transmission
 	 os_setTimedCallback(&sendjob, os_getTime() + sec2osticks(TX_INTERVAL), do_send);
 	 Debug.println(F("Next transmission scheduled"));
@@ -2808,6 +2702,12 @@ static void prepareTxFrame()
 		byte temp_byte[4];
 	} u;
 
+	union uint16_2_byte
+	{
+		uint16_t temp_uint;
+		byte temp_byte[2];
+	} u2;
+
 	if (cfg::sds_read)
 	{
 		u.temp_float = last_value_SDS_P1;
@@ -2824,50 +2724,34 @@ static void prepareTxFrame()
 		datalora_sds[6] = u.temp_byte[2];
 		datalora_sds[7] = u.temp_byte[3];
 
-		u.temp_float = last_value_BMX280_T;
+		u2.temp_uint = taste_counter;
 
-		datalora_sds[8] = u.temp_byte[0];
-		datalora_sds[9] = u.temp_byte[1];
-		datalora_sds[10] = u.temp_byte[2];
-		datalora_sds[11] = u.temp_byte[3];
-
-		u.temp_float = last_value_BMX280_P;
-
-		datalora_sds[12] = u.temp_byte[0];
-		datalora_sds[13] = u.temp_byte[1];
-		datalora_sds[14] = u.temp_byte[2];
-		datalora_sds[15] = u.temp_byte[3];
-
-		u.temp_float = last_value_BME280_H;
-
-		datalora_sds[16] = u.temp_byte[0];
-		datalora_sds[17] = u.temp_byte[1];
-		datalora_sds[18] = u.temp_byte[2];
-		datalora_sds[19] = u.temp_byte[3];
+		datalora_sds[8] = u2.temp_byte[0];
+		datalora_sds[9] = u2.temp_byte[1];
 
 		debug_outln_info(F(cfg::latitude));
 
 		u.temp_float = atof(cfg::latitude);
 
-		datalora_sds[20] = u.temp_byte[0];
-		datalora_sds[21] = u.temp_byte[1];
-		datalora_sds[22] = u.temp_byte[2];
-		datalora_sds[23] = u.temp_byte[3];
+		datalora_sds[10] = u.temp_byte[0];
+		datalora_sds[11] = u.temp_byte[1];
+		datalora_sds[12] = u.temp_byte[2];
+		datalora_sds[13] = u.temp_byte[3];
 
 		debug_outln_info(F(cfg::longitude));
 
 		u.temp_float = atof(cfg::longitude);
 
-		datalora_sds[24] = u.temp_byte[0];
-		datalora_sds[25] = u.temp_byte[1];
-		datalora_sds[26] = u.temp_byte[2];
-		datalora_sds[27] = u.temp_byte[3];
+		datalora_sds[14] = u.temp_byte[0];
+		datalora_sds[15] = u.temp_byte[1];
+		datalora_sds[16] = u.temp_byte[2];
+		datalora_sds[17] = u.temp_byte[3];
 
 		Debug.printf("HEX values:\n");
-		for (int i = 0; i < 29; i++)
+		for (int i = 0; i < 18; i++)
 		{
 			Debug.printf(" %02x", datalora_sds[i]);
-			if (i == 28)
+			if (i == 17)
 			{
 				Debug.printf("\n");
 			}
@@ -2906,7 +2790,7 @@ void setup()
 	cfg::initNonTrivials(esp_chipid.c_str());
 	WiFi.persistent(false);
 
-	debug_outln_info(F("ModuleAirV2: " SOFTWARE_VERSION_STR "/"), String(CURRENT_LANG));
+	debug_outln_info(F("co:hub66: " SOFTWARE_VERSION_STR "/"), String(CURRENT_LANG));
 
 	init_config();
 
@@ -2917,6 +2801,9 @@ void setup()
 #if defined(ARDUINO_TTGO_LoRa32_v21new)
 	Wire.begin(I2C_PIN_SDA, I2C_PIN_SCL);
 #endif
+
+pinMode(PINRELAY, OUTPUT);
+digitalWrite(PINRELAY, HIGH); //turned off
 
 #if defined(ARDUINO_HELTEC_WIFI_LORA_32_V2)
 	pinMode(OLED_RESET, OUTPUT);
@@ -3010,25 +2897,12 @@ if(cfg::has_ssd1306){
 		LMIC_reset();
 
 		// Start job (sending automatically starts OTAA too)
-		do_send(&sendjob); // ATTENTION AU FISRT SEND => FILTRER DANS LE DECODEUR? //Valeurs -1, -128 etc.
+		do_send(&sendjob); 
 	}
 
-
-
-//   //display_update_enable(false)
-
-// LE PROBLEME VIENT DES INTERRUPT???
-
-
-Debug.printf("FIN SETUP!!!\n");
+Debug.printf("END SETUP!!!\n");
 
 }
-
-
-//IL FAUT RECUPERER LA DATE PAR LE LORA!!!!
-
-
-
 
 void loop()
 {
@@ -3120,7 +2994,7 @@ void loop()
 
 			//json example for WiFi transmission
 
-			//{"software_version" : "ModuleAirV2-V1-122021", "sensordatavalues" : [ {"value_type" : "NPM_P0", "value" : "1.84"}, {"value_type" : "NPM_P1", "value" : "2.80"}, {"value_type" : "NPM_P2", "value" : "2.06"}, {"value_type" : "NPM_N1", "value" : "27.25"}, {"value_type" : "NPM_N10", "value" : "27.75"}, {"value_type" : "NPM_N25", "value" : "27.50"}, {"value_type" : "BME280_temperature", "value" : "20.84"}, {"value_type" : "BME280_pressure", "value" : "99220.03"}, {"value_type" : "BME280_humidity", "value" : "61.66"}, {"value_type" : "samples", "value" : "138555"}, {"value_type" : "min_micro", "value" : "933"}, {"value_type" : "max_micro", "value" : "351024"}, {"value_type" : "interval", "value" : "145000"}, {"value_type" : "signal", "value" : "-71"} ]}
+			//{"software_version" : "cohub66-V1-122021", "sensordatavalues" : [ {"value_type" : "NPM_P0", "value" : "1.84"}, {"value_type" : "NPM_P1", "value" : "2.80"}, {"value_type" : "NPM_P2", "value" : "2.06"}, {"value_type" : "NPM_N1", "value" : "27.25"}, {"value_type" : "NPM_N10", "value" : "27.75"}, {"value_type" : "NPM_N25", "value" : "27.50"}, {"value_type" : "BME280_temperature", "value" : "20.84"}, {"value_type" : "BME280_pressure", "value" : "99220.03"}, {"value_type" : "BME280_humidity", "value" : "61.66"}, {"value_type" : "samples", "value" : "138555"}, {"value_type" : "min_micro", "value" : "933"}, {"value_type" : "max_micro", "value" : "351024"}, {"value_type" : "interval", "value" : "145000"}, {"value_type" : "signal", "value" : "-71"} ]}
 
 			// https://en.wikipedia.org/wiki/Moving_average#Cumulative_moving_average
 			sending_time = (3 * sending_time + sum_send_time) / 4;
@@ -3163,19 +3037,8 @@ void loop()
 
 		// Refresh data to send after measurement
 		do_send(&sendjob);
-
-		
-	// starttime = millis(); // store the start time
-	// count_sends++;
-
-
-
-//METTRE LE os_run_loop_once ici ?
-//le cas échánt booleen dans le EV_TX_COMPLete pour lancer wifi ensuite.
-
 	}
 	
-//De manière globale.
 	starttime = millis(); // store the start time
 	count_sends++;
 
@@ -3189,7 +3052,6 @@ void loop()
 if (cfg::has_lora)
 	{
 		os_runloop_once();
-		//deplacer dans le send now
 	}
 
 }

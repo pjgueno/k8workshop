@@ -1,5 +1,7 @@
 // Language config
-#define CURRENT_LANG INTL_LANG
+//#define CURRENT_LANG INTL_LANG
+#define CURRENT_LANG "EN"
+
 
 // Wifi config
 const char WLANSSID[] PROGMEM = "luftdaten";
