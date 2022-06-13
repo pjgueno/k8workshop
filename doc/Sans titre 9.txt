@@ -1,0 +1,5 @@
+return {"configuration":("000000000" + view1.getUint8(0).toString(2)).substr(-8),"PM1_SDS":view2.getInt16(1).toString(),"PM2_SDS":view2.getInt16(3).toString(),"PM0_NPM":view2.getInt16(5).toString(),"PM1_NPM":view2.getInt16(7).toString(),"PM2_NPM":view2.getInt16(9).toString(),"CO2_MHZ16":view2.getInt16(11).toString(),"CO2_MHZ19":view2.getInt16(13).toString(), "COV_SGP40":view2.getInt16(15).toString(),"T_BME":view2.getInt8(17),"H_BME":view2.getInt8(18),"P_BME":view2.getInt16(19),"latitude":view1.getFloat32(21,true).toFixed(5),"longitude":view1.getFloat32(25,true).toFixed(5),"selector":view2.getInt8(29).toString()};
+
+
+
+//return {"P1":view.getFloat32(0,true).toFixed(2).toString(),"P2":view.getFloat32(4,true).toFixed(2).toString(),"temp":view.getFloat32(8,true).toFixed(2).toString(),"press":(view.getFloat32(12,true)).toFixed(2).toString(),"humi":view.getFloat32(16,true).toFixed(2).toString(),"latitude":view.getFloat32(20,true).toFixed(5).toString(),"longitude":view.getFloat32(24,true).toFixed(5).toString(),"selector":view.getInt8(28).toString()}; 

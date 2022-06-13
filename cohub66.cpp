@@ -164,14 +164,16 @@ WebServer server(80);
 SSD1306Wire *oled_ssd1306 = nullptr; // as pointer
 
 /*****************************************************************
- * Counter  and Relai                                         *
+ * Counter, sound  and Relai                                         *
  *****************************************************************/
 
 uint16_t taste_counter = 0;
 bool relai = false;
-#define PINRELAY 27  //CHECK
+#define PINRELAY D27  
 uint8_t arrayDownlink[2];
-
+bool ton = false;
+#define TON_PIN 16
+#define TON_CHANNEL 0
 /*****************************************************************
  * Serial declarations                                           *
  *****************************************************************/
@@ -2005,42 +2007,31 @@ static void send_csv(const String &data)
  * get data from LoRaWAN downlink payload                                        *
  *****************************************************************/
 
-static void getDataLora(uint8_t array[5])
+static void getDataLora(uint8_t array[2])
 {
 
-// union {
-//   float f;
-//   byte b[4];
-// } u;
+if (array[0] == 0)
+{
+relai = false;
+digitalWrite(PINRELAY, HIGH); //turned off
+}
 
-// u.b[0] = array[1];
-// u.b[1] = array[2];
-// u.b[2] = array[3];
-// u.b[3] = array[4];
+if (array[0] == 1)
+{
+relai = true;
+digitalWrite(PINRELAY, LOW); //turned on
+}
 
-// switch(array[0]) {
-//   case 0:
-//     atmoSud.multi = u.f;
-// 	Debug.println("Index from LoRaWAN:");
-//     break;
-//   case 1:
-//     atmoSud.no2 = u.f;
-// 	Debug.println("NO2 from LoRaWAN:");
-//     break;
-//   case 2:
-//     atmoSud.o3 = u.f;
-// 	Debug.println("O3 from LoRaWAN:");
-//     break;
-//   case 3:
-//     atmoSud.pm10 = u.f;
-// 	Debug.println("PM10 from LoRaWAN:");
-//     break;
-//   case 4:
-//     atmoSud.pm2_5 = u.f;
-// 	Debug.println("PM2_5 from LoRaWAN:");
-//     break;
-// }
-// Debug.println(u.f,2);
+if (array[1] == 0)
+{
+ ton = false;
+}
+
+if (array[1] == 1)
+{
+	ton = true;
+}
+
 }
 
 /*****************************************************************
@@ -2307,10 +2298,6 @@ static void init_display()
 
 	{
 
-#if defined(ARDUINO_TTGO_LoRa32_v21new)
-		oled_ssd1306 = new SSD1306Wire(0x3c, I2C_PIN_SDA, I2C_PIN_SCL);
-#endif
-
 #if defined(ARDUINO_HELTEC_WIFI_LORA_32_V2)
 		oled_ssd1306 = new SSD1306Wire(0x3c, I2C_SCREEN_SDA, I2C_SCREEN_SCL);
 #endif
@@ -2472,6 +2459,7 @@ const lmic_pinmap lmic_pins = {
 	.spi_freq = 8000000 /* 8 MHz */
 };
 #endif
+
 
 void ToByteArray()
 {
@@ -2794,14 +2782,6 @@ void setup()
 
 	init_config();
 
-#if defined(ESP32) and not defined(ARDUINO_HELTEC_WIFI_LORA_32_V2) and not defined(ARDUINO_TTGO_LoRa32_v21new)
-	Wire.begin(I2C_PIN_SDA, I2C_PIN_SCL);
-#endif
-
-#if defined(ARDUINO_TTGO_LoRa32_v21new)
-	Wire.begin(I2C_PIN_SDA, I2C_PIN_SCL);
-#endif
-
 pinMode(PINRELAY, OUTPUT);
 digitalWrite(PINRELAY, HIGH); //turned off
 
@@ -2813,7 +2793,6 @@ digitalWrite(PINRELAY, HIGH); //turned off
 	Wire.begin(I2C_SCREEN_SDA, I2C_SCREEN_SCL);
 	Wire1.begin(I2C_PIN_SDA, I2C_PIN_SCL);
 #endif
-
 	
 	if (cfg::sds_read)
 	{
@@ -2953,6 +2932,25 @@ void loop()
 	server.handleClient();
 	yield();
 
+if (ton == true)
+{
+  tone(TON_PIN, NOTE_C4, 500, TON_CHANNEL);
+  noTone(TON_PIN, TON_CHANNEL);
+  tone(TON_PIN, NOTE_D4, 500, TON_CHANNEL);
+  noTone(TON_PIN, TON_CHANNEL);
+  tone(TON_PIN, NOTE_E4, 500, TON_CHANNEL);
+  noTone(TON_PIN, TON_CHANNEL);
+  tone(TON_PIN, NOTE_F4, 500, TON_CHANNEL);
+  noTone(TON_PIN, TON_CHANNEL);
+  tone(TON_PIN, NOTE_G4, 500, TON_CHANNEL);
+  noTone(TON_PIN, TON_CHANNEL);
+  tone(TON_PIN, NOTE_A4, 500, TON_CHANNEL);
+  noTone(TON_PIN, TON_CHANNEL);
+  tone(TON_PIN, NOTE_B4, 500, TON_CHANNEL);
+  noTone(TON_PIN, TON_CHANNEL);
+}
+
+
 	if (send_now)
 	{
 
@@ -3053,5 +3051,7 @@ if (cfg::has_lora)
 	{
 		os_runloop_once();
 	}
+
+
 
 }

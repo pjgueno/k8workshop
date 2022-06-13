@@ -82,25 +82,12 @@ static const char URL_CUSTOM2[] PROGMEM = "/data.php";
 #define PM_SERIAL_RX D23
 #define PM_SERIAL_TX D17
 
-// #define ONEWIRE_PIN D32
-// #define PM_SERIAL_RX D27
-// #define PM_SERIAL_TX D33
-
 #define I2C_PIN_SCL D22
 #define I2C_PIN_SDA D21
-// #define GPS_SERIAL_RX D12
-// #define GPS_SERIAL_TX D13
 
-// const lmic_pinmap lmic_pins = {
-// 	.nss = D18,
-// 	.rxtx = LMIC_UNUSED_PIN,
-// 	.rst = D14,
-// 	.dio = {/*dio0*/ D26, /*dio1*/ D35, /*dio2*/ D34},
-// 	.rxtx_rx_active = 0,
-// 	.rssi_cal = 10,
-// 	.spi_freq = 8000000 /* 8 MHz */
-// };
+
 #endif
+
 
 // SDS011, the more expensive version of the particle sensor
 #define SDS_READ 0
