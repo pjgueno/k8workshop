@@ -16,11 +16,11 @@ const char WWW_PASSWORD[] PROGMEM = "";
 #define FS_SSID ""
 #define FS_PWD "cohub66cfg"
 
-#define HAS_WIFI 1
-#define HAS_LORA 0
+#define HAS_WIFI 0
+#define HAS_LORA 1
 const char APPEUI[] = "0000000000000000";
-const char DEVEUI [] = "0000000000000000";
-const char APPKEY[] = "00000000000000000000000000000000";
+const char DEVEUI [] = "70B3D57ED0051D7D";
+const char APPKEY[] = "11705686307C8B89DB0E3804C7A68013";
 
 // Where to send the data?
 #define SEND2SENSORCOMMUNITY 0

@@ -203,7 +203,6 @@ enum
 } SDS_waiting_for;
 
 unsigned long sending_time = 0;
-unsigned long last_update_attempt;
 int last_update_returncode;
 int last_sendData_returncode;
 
@@ -2826,7 +2825,6 @@ if(cfg::has_ssd1306){
 	delay(50);
 
 	starttime = millis(); // store the start time
-	last_update_attempt = time_point_device_start_ms = starttime;
 
 
 		last_display_millis = starttime_SDS = starttime;
